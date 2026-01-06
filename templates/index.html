@@ -3,23 +3,91 @@
 <head>
     <title>Salesforce CMS Bundler</title>
     <style>
-        body { font-family: sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; text-align: center; }
-        .upload-box { border: 2px dashed #ccc; padding: 40px; border-radius: 10px; background: #f9f9f9; }
-        button { background-color: #0070d2; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; margin-top: 15px; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; text-align: center; color: #333; }
+        .upload-box { border: 2px dashed #ccc; padding: 40px; border-radius: 10px; background: #f9f9f9; transition: all 0.3s ease; }
+        .upload-box:hover { border-color: #0070d2; background: #f0f8fc; }
+        
+        button { background-color: #0070d2; color: white; padding: 12px 24px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; margin-top: 15px; font-weight: bold; }
         button:hover { background-color: #005fb2; }
+        button:disabled { background-color: #ccc; cursor: not-allowed; }
+        
         input[type=file] { margin-bottom: 20px; }
+        
+        #status-area { margin-top: 20px; font-weight: 500; }
+        .safe { color: #04844b; }
+        .warning { color: #ffb75d; }
+        .danger { color: #c23934; font-weight: bold; }
+        
+        .limit-info { font-size: 0.9em; color: #666; margin-top: 30px; border-top: 1px solid #eee; padding-top: 10px;}
     </style>
 </head>
 <body>
     <h1>Salesforce CMS Image Bundler</h1>
-    <p>Select your images (JPG, PNG) and click Convert.</p>
+    <p>Select your images (JPG, PNG) to create an Enhanced CMS import package.</p>
     
     <div class="upload-box">
-        <form action="/convert" method="post" enctype="multipart/form-data">
-            <input type="file" name="images" multiple accept=".jpg,.jpeg,.png">
+        <form action="/convert" method="post" enctype="multipart/form-data" id="upload-form">
+            <input type="file" name="images" id="file-input" multiple accept=".jpg,.jpeg,.png">
             <br>
-            <button type="submit">Convert & Download ZIP</button>
+            <div id="status-area"></div>
+            <button type="submit" id="submit-btn" disabled>Select Files First</button>
         </form>
     </div>
+
+    <div class="limit-info">
+        <p><strong>Safe Zone:</strong> Keep batches under <strong>50MB</strong> to prevent timeouts.</p>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('file-input');
+        const statusArea = document.getElementById('status-area');
+        const submitBtn = document.getElementById('submit-btn');
+
+        // 50MB in bytes
+        const SAFE_LIMIT = 50 * 1024 * 1024; 
+        // 100MB Hard limit suggestion
+        const HARD_LIMIT = 100 * 1024 * 1024; 
+
+        fileInput.addEventListener('change', function() {
+            if (this.files.length === 0) {
+                statusArea.innerHTML = "";
+                submitBtn.disabled = true;
+                submitBtn.innerText = "Select Files First";
+                return;
+            }
+
+            let totalSize = 0;
+            for (let i = 0; i < this.files.length; i++) {
+                totalSize += this.files[i].size;
+            }
+
+            // Convert to MB for display
+            const sizeInMB = (totalSize / (1024 * 1024)).toFixed(2);
+            let message = `${this.files.length} files selected (${sizeInMB} MB)`;
+            let cssClass = "safe";
+
+            if (totalSize < SAFE_LIMIT) {
+                // Safe Zone
+                submitBtn.disabled = false;
+                submitBtn.innerText = "Convert & Download ZIP";
+                cssClass = "safe";
+                message += " - ✅ Safe Zone";
+            } else if (totalSize < HARD_LIMIT) {
+                // Warning Zone
+                submitBtn.disabled = false;
+                submitBtn.innerText = "Convert (Might Timeout)";
+                cssClass = "warning";
+                message += " - ⚠️ Large batch. Proceed with caution.";
+            } else {
+                // Danger Zone - prevent upload
+                submitBtn.disabled = true;
+                submitBtn.innerText = "Batch Too Large";
+                cssClass = "danger";
+                message += " - ⛔ Too big for free server! Please split batch.";
+            }
+
+            statusArea.innerHTML = `<span class="${cssClass}">${message}</span>`;
+        });
+    </script>
 </body>
 </html>
